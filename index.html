@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <title>Untitled</title>
+    
+
+  </head>
+    
+  <body>
+  <!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Flight Tracker</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#1a1a2e;min-height:100vh;padding:15px;color:white}
+.card{background:rgba(255,255,255,0.1);padding:15px;border-radius:15px;margin-bottom:15px}
+h1{text-align:center;margin-bottom:15px;font-size:1.4rem}
+label{display:block;margin-bottom:5px;font-size:0.8rem;color:#aaa}
+input{width:100%;padding:12px;border-radius:8px;border:none;margin-bottom:10px;background:white}
+button{width:100%;padding:12px;background:linear-gradient(90deg,#00d4ff,#0099cc);border:none;border-radius:8px;font-weight:bold;color:#000;margin-bottom:8px;cursor:pointer}
+button:active{transform:scale(0.98)}
+.btn{background:rgba(255,255,255,0.15);color:white;padding:10px;border-radius:8px;text-align:center;font-size:0.75rem;border:1px solid rgba(255,255,255,0.2);cursor:pointer;margin:3px}
+.btn-grid{display:flex;flex-wrap:wrap;gap:5px}
+#map{height:280px;border-radius:15px;margin-bottom:15px;display:none;background:#333}
+.result{background:white;color:#333;padding:15px;border-radius:15px;display:none;margin-bottom:15px}
+.flight-header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #eee;padding-bottom:10px;margin-bottom:10px}
+.flight-num{font-size:1.5rem;font-weight:bold;color:#007bff}
+.airline{font-size:0.8rem;color:#666}
+.route{display:flex;justify-content:space-between;align-items:center;margin:15px 0}
+.airport{text-align:center;flex:1}
+.code{font-size:1.5rem;font-weight:bold}
+.city{font-size:0.7rem;color:#888}
+.time{font-size:0.7rem;color:#666}
+.status{padding:5px 12px;border-radius:15px;font-weight:bold;font-size:0.75rem}
+.on-time{background:#d4edda;color:#155724}
+.delayed{background:#fff3cd;color:#856404}
+.landed{background:#d4edda;color:#155724}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.info-box{background:#f8f9fa;padding:10px;border-radius:8px;text-align:center}
+.info-label{font-size:0.65rem;color:#888}
+.info-value{font-weight:bold}
+.tabs{display:flex;gap:8px;margin-bottom:15px}
+.tab{flex:1;padding:12px;background:rgba(255,255,255,0.1);border:none;border-radius:10px;color:white;text-align:center;cursor:pointer}
+.tab.active{background:#00d4ff;color:#000}
+.view{display:none}
+.view.active{display:block}
+.loader{display:none;text-align:center;padding:20px}
+.spinner{width:35px;height:35px;border:4px solid rgba(255,255,255,0.3);border-top:4px solid #00d4ff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto}
+@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.error{background:rgba(255,0,0,0.2);color:#ff6b6b;padding:12px;border-radius:10px;text-align:center;display:none;margin-bottom:15px}
+</style>
+</head>
+<body>
+
+<h1>✈️ Live Flight Tracker</h1>
+
+<div class="card">
+<label>🔑 API Key (from aviationstack.com)</label>
+<input type="password" id="apiKey" placeholder="Paste your API key here">
+</div>
+
+<div class="tabs">
+<div class="tab active" onclick="switchTab('search')">🔍 Search</div>
+<div class="tab" onclick="switchTab('map')">🗺️ Map</div>
+</div>
+
+<!-- SEARCH -->
+<div id="view-search" class="view active">
+<div class="card">
+<label>🛫 Flight Number</label>
+<input type="text" id="flightInput" placeholder="e.g., BA117, UA500, DAL44">
+<button onclick="trackFlight()">Track Flight</button>
+</div>
+
+<div class="card">
+<div style="color:#00d4ff;font-size:0.9rem;margin-bottom:10px">🔥 Popular Flights</div>
+<div class="btn-grid">
+<div class="btn" onclick="quickTrack('BA117')">BA117</div>
+<div class="btn" onclick="quickTrack('UA500')">UA500</div>
+<div class="btn" onclick="quickTrack('DAL44')">DAL44</div>
+<div class="btn" onclick="quickTrack('AA100')">AA100</div>
+<div class="btn" onclick="quickTrack('AF123')">AF123</div>
+<div class="btn" onclick="quickTrack('EK215')">EK215</div>
+</div>
+</div>
+
+<div class="loader" id="loader"><div class="spinner"></div></div>
+<div class="error" id="error"></div>
+
+<div id="result" class="result">
+<div class="flight-header">
+<div><div class="flight-num" id="flightNum"></div><div class="airline" id="airline"></div></div>
+<span class="status" id="status"></span>
+</div>
+<div class="route">
+<div class="airport"><div class="code" id="fromCode"></div><div class="city" id="fromCity"></div><div class="time" id="depTime"></div></div>
+<div style="font-size:1.3rem">✈️</div>
+<div class="airport"><div class="code" id="toCode"></div><div class="city" id="toCity"></div><div class="time" id="arrTime"></div></div>
+</div>
+<div class="info-grid">
+<div class="info-box"><div class="info-label">Aircraft</div><div class="info-value" id="aircraft"></div></div>
+<div class="info-box"><div class="info-label">Gate/Terminal</div><div class="info-value" id="gate"></div></div>
+</div>
+<button onclick="showMapRoute()" style="margin-top:15px;background:#28a745;color:white">🗺️ Show on Map</button>
+</div>
+</div>
+
+<!-- MAP -->
+<div id="view-map" class="view">
+<div class="card">
+<div style="color:#00d4ff;font-size:0.9rem;margin-bottom:10px">🗺️ Flight Route</div>
+<div id="map"></div>
+<button onclick="showMapRoute()" id="mapBtn">Show Route</button>
+</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let map, currentFlight, mapInited=false;
+
+// Save API key
+if(localStorage.getItem('apiKey')){
+document.getElementById('apiKey').value=localStorage.getItem('apiKey');
+}
+document.getElementById('apiKey').addEventListener('change',function(){
+localStorage.setItem('apiKey',this.value);
+});
+
+function quickTrack(n){
+document.getElementById('flightInput').value=n;
+trackFlight();
+}
+
+async function trackFlight(){
+const apiKey=document.getElementById('apiKey').value.trim();
+const flight=document.getElementById('flightInput').value.trim().toUpperCase();
+const loader=document.getElementById('loader');
+const result=document.getElementById('result');
+const error=document.getElementById('error');
+
+result.style.display='none';
+error.style.display='none';
+
+if(!apiKey){error.innerText='Please enter your API key!';error.style.display='block';return}
+if(!flight){error.innerText='Enter a flight number!';error.style.display='block';return}
+
+loader.style.display='block';
+
+try{
+const response=await fetch('https://api.aviationstack.com/v1/flights?access_key='+apiKey+'&flight_iata='+flight);
+const data=await response.json();
+loader.style.display='none';
+
+if(data.error){error.innerText=data.error.info||'API Error!';error.style.display='block';return}
+if(!data.data||data.data.length===0){error.innerText='Flight not found!';error.style.display='block';return}
+
+const f=data.data[0];
+displayFlight(f);
+
+}catch(err){
+loader.style.display='none';
+error.innerText='Network error! Check internet.';
+error.style.display='block';
+}
+}
+
+function displayFlight(f){
+currentFlight={
+num:f.flight.iata,
+airline:f.airline.name,
+from:f.departure.iata,
+to:f.arrival.iata,
+fromCity:f.departure.airport,
+toCity:f.arrival.airport,
+status:f.flight_status,
+aircraft:f.aircraft?.iata||'N/A',
+gate:'T'+(f.departure.terminal||'-')+' / '+(f.departure.gate||'-'),
+dep:f.departure.scheduled,
+arr:f.arrival.scheduled,
+fromCoords:getCoords(f.departure.iata),
+toCoords:getCoords(f.arrival.iata)
+};
+
+document.getElementById('flightNum').innerText=currentFlight.num;
+document.getElementById('airline').innerText=currentFlight.airline;
+document.getElementById('fromCode').innerText=currentFlight.from;
+document.getElementById('fromCity').innerText=currentFlight.fromCity;
+document.getElementById('toCode').innerText=currentFlight.to;
+document.getElementById('toCity').innerText=currentFlight.toCity;
+document.getElementById('depTime').innerText=formatTime(currentFlight.dep);
+document.getElementById('arrTime').innerText=formatTime(currentFlight.arr);
+document.getElementById('aircraft').innerText=currentFlight.aircraft;
+document.getElementById('gate').innerText=currentFlight.gate;
+document.getElementById('status').innerText=currentFlight.status;
+document.getElementById('status').className='status '+(currentFlight.status==='active'?'on-time':currentFlight.status==='delayed'?'delayed':'landed');
+
+document.getElementById('result').style.display='block';
+}
+
+// Airport coordinates database
+function getCoords(code){
+const airports={
+'LHR':[51.4700,-0.4500],'JFK':[40.6413,-73.7781],'LAX':[33.9425,-118.4081],
+'SFO':[37.6213,-122.3790],'ORD':[41.9742,-87.9073],'DFW':[32.8998,-97.0403],
+'CDG':[49.0097,2.5479],'DXB':[25.2532,55.3657],'ATL':[33.6407,-84.4277],
+'MIA':[25.7959,-80.2870],'EWR':[40.6895,-74.1745],'BOS':[42.3656,-71.0096],
+'LAS':[36.0840,-115.1537],'SEA':[47.4502,-122.3088],'DEN':[39.8561,-104.6737]
+};
+return airports[code]||[0,0];
+}
+
+function formatTime(iso){
+if(!iso)return'--';
+return new Date(iso).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+}
+
+function switchTab(tab){
+document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+document.getElementById('view-'+tab).classList.add('active');
+event.target.classList.add('active');
+if(tab==='map'){
+switchToMap();
+}
+}
+
+function switchToMap(){
+if(!mapInited){
+setTimeout(()=>{
+map=L.map('map').setView([30,-10],2);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(map);
+document.getElementById('map').style.display='block';
+mapInited=true;
+},100);
+}
+}
+
+function showMapRoute(){
+if(!currentFlight){alert('Track a flight first!');return}
+switchTab('map');
+setTimeout(()=>{
+if(map)map.remove();
+map=L.map('map').setView([30,-10],2);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(map);
+
+L.marker(currentFlight.fromCoords).addTo(map).bindPopup(currentFlight.fromCity).openPopup();
+L.marker(currentFlight.toCoords).addTo(map).bindPopup(currentFlight.toCity);
+
+L.polyline([currentFlight.fromCoords,currentFlight.toCoords],{color:'#00d4ff',weight:4,dashArray:'15,10'}).addTo(map);
+map.fitBounds([[currentFlight.fromCoords,currentFlight.toCoords]],{padding:[30,30]});
+},300);
+}
+</script>
+
+</body>
+</html>
+    
+  </body>
+  
+</html>
