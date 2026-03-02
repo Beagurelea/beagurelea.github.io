@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flight Tracker</title>
 
-<!-- ADSENSE SCRIPT - ADD THIS -->
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2624282669573972" crossorigin="anonymous"></script>
 
 <style>
@@ -25,13 +24,37 @@ button{width:100%;padding:12px;background:#00d4ff;border:none;border-radius:8px;
 .code{font-size:1.5rem;font-weight:bold}
 .status{background:#d4edda;padding:5px 12px;border-radius:15px;font-weight:bold}
 .book-btn{display:block;padding:12px;margin-top:10px;background:linear-gradient(90deg,#0776bc,#00d687);color:white;text-align:center;border-radius:8px;text-decoration:none;font-weight:bold}
-
-/* AD STYLES */
 .ad-container{background:white;padding:10px;margin-bottom:15px;border-radius:10px;text-align:center}
 .ad-label{font-size:0.7rem;color:#888;margin-bottom:5px}
+
+/* CONSENT BANNER */
+#consent-banner{
+position:fixed;bottom:0;left:0;right:0;background:#fff;color:#333;
+padding:20px;box-shadow:0 -2px10px rgba(0,0,0,0.3);z-index:9999;
+display:none;font-family:sans-serif;
+}
+.consent-title{font-weight:bold;margin-bottom:10px;font-size:1.1rem}
+.consent-text{font-size:0.85rem;margin-bottom:15px;line-height:1.5}
+.consent-buttons{display:flex;gap:10px}
+.consent-btn{padding:12px 20px;border:none;border-radius:8px;font-weight:bold;flex:1;cursor:pointer}
+.consent-accept{background:#00d4ff;color:#000}
+.consent-manage{background:#eee;color:#333}
 </style>
 </head>
 <body>
+
+<!-- CONSENT BANNER -->
+<div id="consent-banner">
+<div class="consent-title">🍪 We use cookies</div>
+<div class="consent-text">
+We use cookies and similar technologies to show ads, analyze traffic, and improve your experience. 
+By clicking "Accept", you consent to our use of cookies.
+</div>
+<div class="consent-buttons">
+<button class="consent-btn consent-manage" onclick="manageConsent()">⚙️ Manage Options</button>
+<button class="consent-btn consent-accept" onclick="acceptConsent()">✅ Accept</button>
+</div>
+</div>
 
 <h1>✈️ Flight Tracker</h1>
 
@@ -70,7 +93,6 @@ button{width:100%;padding:12px;background:#00d4ff;border:none;border-radius:8px;
 <div class="airport"><div class="code" id="toCode"></div><div id="toCity"></div></div>
 </div>
 <span class="status" id="status"></span>
-
 <a href="#" id="bookLink" class="book-btn" target="_blank">🔍 Book Similar Flights</a>
 </div>
 
@@ -114,7 +136,31 @@ alert('Try BA117, UA500, DAL44, AA100, AF123');
 }
 }
 
-// LOAD ADS
+// CONSENT FUNCTIONS
+function checkConsent(){
+const consent=localStorage.getItem('cookieConsent');
+if(!consent){
+document.getElementById('consent-banner').style.display='block';
+}
+}
+
+function acceptConsent(){
+localStorage.setItem('cookieConsent','accepted');
+document.getElementById('consent-banner').style.display='none';
+// Reload to show ads
+(adsbygoogle = window.adsbygoogle || []).push({});
+}
+
+function manageConsent(){
+alert('Manage your cookie preferences here. For now, we use essential cookies for ads.');
+localStorage.setItem('cookieConsent','managed');
+document.getElementById('consent-banner').style.display='none';
+}
+
+// Check consent on load
+checkConsent();
+
+// Load ads
 (adsbygoogle = window.adsbygoogle || []).push({});
 </script>
 </body>
