@@ -150,6 +150,11 @@ button:active {
     color: #856404;
 }
 
+.status.landed {
+    background: #d4edda;
+    color: #155724;
+}
+
 .book-btn {
     display: block;
     padding: 12px;
@@ -243,6 +248,39 @@ button:active {
     text-decoration: none;
 }
 
+/* Loader */
+.loader {
+    display: none;
+    text-align: center;
+    padding: 20px;
+}
+
+.spinner {
+    width: 35px;
+    height: 35px;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-top: 4px solid #00d4ff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Error */
+.error {
+    background: rgba(255, 0, 0, 0.2);
+    color: #ff6b6b;
+    padding: 12px;
+    border-radius: 10px;
+    text-align: center;
+    display: none;
+    margin-bottom: 15px;
+}
+
 /* Responsive */
 @media (min-width: 600px) {
     body {
@@ -268,6 +306,13 @@ By clicking "Accept", you consent to our use of cookies.
 </div>
 
 <h1>✈️ Flight Tracker</h1>
+
+<!-- API Key Input -->
+<div class="card">
+<label>🔑 API Key (from aviationstack.com)</label>
+<input type="password" id="apiKey" placeholder="Paste your API key here">
+<div style="font-size:0.7rem;color:#aaa;margin-top:5px">Get free key at aviationstack.com</div>
+</div>
 
 <!-- Top Ad -->
 <div class="ad-container">
@@ -299,6 +344,14 @@ By clicking "Accept", you consent to our use of cookies.
 <div class="btn" onclick="track('EK215')">EK215</div>
 </div>
 </div>
+
+<!-- Loader -->
+<div class="loader" id="loader">
+<div class="spinner"></div>
+</div>
+
+<!-- Error Message -->
+<div class="error" id="error"></div>
 
 <!-- Flight Result -->
 <div id="result" class="result">
@@ -338,15 +391,14 @@ Made with ❤️ by <a href="#">KANISHKA NARAYAN</a><br>
 </div>
 
 <script>
-// Flight Data
-const flights = {
-    'BA117': { airline: 'British Airways', from: 'LHR', to: 'JFK', fromCity: 'London', toCity: 'New York', status: 'On Time' },
-    'UA500': { airline: 'United Airlines', from: 'SFO', to: 'ORD', fromCity: 'San Francisco', toCity: 'Chicago', status: 'On Time' },
-    'DAL44': { airline: 'Delta Airlines', from: 'LAX', to: 'JFK', fromCity: 'Los Angeles', toCity: 'New York', status: 'Delayed' },
-    'AA100': { airline: 'American Airlines', from: 'DFW', to: 'LAX', fromCity: 'Dallas', toCity: 'Los Angeles', status: 'On Time' },
-    'AF123': { airline: 'Air France', from: 'CDG', to: 'SFO', fromCity: 'Paris', toCity: 'San Francisco', status: 'On Time' },
-    'EK215': { airline: 'Emirates', from: 'DXB', to: 'JFK', fromCity: 'Dubai', toCity: 'New York', status: 'On Time' }
-};
+// Save API key to localStorage
+if(localStorage.getItem('apiKey')) {
+    document.getElementById('apiKey').value = localStorage.getItem('apiKey');
+}
+
+document.getElementById('apiKey').addEventListener('change', function() {
+    localStorage.setItem('apiKey', this.value);
+});
 
 // Quick track function
 function track(n) {
@@ -354,32 +406,90 @@ function track(n) {
     trackFlight();
 }
 
-// Main track function
-function trackFlight() {
-    const input = document.getElementById('flightInput').value.toUpperCase().trim();
-    const data = flights[input];
-    
-    if (data) {
-        document.getElementById('flightNum').innerText = input;
-        document.getElementById('airline').innerText = data.airline;
-        document.getElementById('fromCode').innerText = data.from;
-        document.getElementById('fromCity').innerText = data.fromCity;
-        document.getElementById('toCode').innerText = data.to;
-        document.getElementById('toCity').innerText = data.toCity;
-        document.getElementById('status').innerText = data.status;
-        
-        // Set status class
-        const statusEl = document.getElementById('status');
-        statusEl.className = 'status ' + (data.status === 'On Time' ? 'on-time' : 'delayed');
-        
-        // Update booking link
-        document.getElementById('bookLink').href = 'https://www.skyscanner.com/transport/flights-from/' + data.from + '/to/' + data.to;
-        
-        // Show result
-        document.getElementById('result').style.display = 'block';
-    } else {
-        alert('Flight not found! Try: BA117, UA500, DAL44, AA100, AF123, EK215');
+// Main track function with API
+async function trackFlight() {
+    const apiKey = document.getElementById('apiKey').value.trim();
+    const flight = document.getElementById('flightInput').value.trim().toUpperCase();
+    const loader = document.getElementById('loader');
+    const result = document.getElementById('result');
+    const error = document.getElementById('error');
+
+    // Hide previous results
+    result.style.display = 'none';
+    error.style.display = 'none';
+
+    // Validation
+    if (!apiKey) {
+        error.innerText = 'Please enter your API key from aviationstack.com';
+        error.style.display = 'block';
+        return;
     }
+    if (!flight) {
+        error.innerText = 'Please enter a flight number';
+        error.style.display = 'block';
+        return;
+    }
+
+    // Show loader
+    loader.style.display = 'block';
+
+    try {
+        // Call AviationStack API
+        const response = await fetch(
+            `https://api.aviationstack.com/v1/flights?access_key=${apiKey}&flight_iata=${flight}`
+        );
+        const data = await response.json();
+        loader.style.display = 'none';
+
+        // Check for API errors
+        if (data.error) {
+            error.innerText = data.error.info || 'API Error! Check your key.';
+            error.style.display = 'block';
+            return;
+        }
+
+        // Check if flight found
+        if (!data.data || data.data.length === 0) {
+            error.innerText = 'Flight not found! Try BA117, UA500, DAL44, etc.';
+            error.style.display = 'block';
+            return;
+        }
+
+        // Display flight data
+        const f = data.data[0];
+        displayFlight(f);
+
+    } catch (err) {
+        loader.style.display = 'none';
+        error.innerText = 'Network error! Check your internet connection.';
+        error.style.display = 'block';
+    }
+}
+
+// Display flight data
+function displayFlight(f) {
+    const flight = f.flight;
+    const depart = f.departure;
+    const arrive = f.arrival;
+
+    document.getElementById('flightNum').innerText = flight.iata;
+    document.getElementById('airline').innerText = f.airline.name;
+    document.getElementById('fromCode').innerText = depart.iata;
+    document.getElementById('fromCity').innerText = depart.airport;
+    document.getElementById('toCode').innerText = arrive.iata;
+    document.getElementById('toCity').innerText = arrive.airport;
+    document.getElementById('status').innerText = f.flight_status;
+
+    // Set status class
+    const statusEl = document.getElementById('status');
+    const status = f.flight_status.toLowerCase();
+    statusEl.className = 'status ' + (status === 'active' || status === 'on-time' ? 'on-time' : status === 'delayed' ? 'delayed' : 'landed');
+
+    // Update booking link
+    document.getElementById('bookLink').href = 'https://www.skyscanner.com/transport/flights-from/' + depart.iata + '/to/' + arrive.iata;
+
+    // Show result
+    document.getElementById('result').style.display = 'block';
 }
 
 // Consent functions
